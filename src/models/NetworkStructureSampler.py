@@ -1,10 +1,10 @@
-import argparse
 import numpy as np
 import torch
+
 from torch import nn
-from torch.nn import functional as F
 from torch.distributions import Beta, RelaxedBernoulli, Bernoulli
 from torch.distributions.kl import kl_divergence
+from torch.nn import functional as F
 
 
 class NetworkStructureSampler(nn.Module):
@@ -50,6 +50,8 @@ class NetworkStructureSampler(nn.Module):
         self.a_k = nn.Parameter(torch.Tensor(self.truncation_level).zero_() + α)
         self.b_k = nn.Parameter(torch.Tensor(self.truncation_level).zero_() + β)
 
+        self.threshold = None
+
     def get_variational_params(self):
         a_k = F.softplus(self.a_k) + 0.01
         b_k = F.softplus(self.b_k) + 0.01
@@ -83,9 +85,10 @@ class NetworkStructureSampler(nn.Module):
         threshold_array = (threshold_Z > 0).sum(dim=1).cpu().numpy()
         # Third, consider maximum of thresholds from multiple samples
         threshold = max(threshold_array)
+        self.threshold = threshold
         return threshold
 
-    def forward(self, num_samples: int = 5, get_pi: bool = False):
+    def forward(self, num_samples: int = 5, get_pi: bool = False, reverse_pi=False):
 
         # Define variational beta distribution
         a_k, b_k = self.get_variational_params()
@@ -112,6 +115,9 @@ class NetworkStructureSampler(nn.Module):
             Z = bernoulli_dist.sample()
 
         threshold = self.get_threshold(Z)
+
+        if reverse_pi:
+            Z = 1 - Z
 
         if get_pi:
             # return probabilities to plot

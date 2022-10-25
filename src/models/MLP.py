@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+
 from src.layers.layers import MLPBlock
 from src.models.NetworkStructureSampler import NetworkStructureSampler
 
@@ -8,15 +9,16 @@ class AdaptiveMLP(nn.Module):
     def __init__(self, input_feature_dim, out_feature_dim, args, device):
         super(AdaptiveMLP, self).__init__()
         self.args = args
+
         self.input_feature_dim = input_feature_dim
         self.out_feature_dim = out_feature_dim
 
         # Maximum number of neurons (M)
         self.max_width = args.max_width
-
         # Truncation level for variational approximation
-        self.truncation_level = args.truncation_level # K truncation_level
+        self.truncation_level = args.truncation_level  # K truncation_level
         self.num_samples = args.num_samples
+
         self.device = device
 
         # define neural network structure sampler with parameters defined in argument parser
@@ -56,23 +58,22 @@ class AdaptiveMLP(nn.Module):
         out = self.out_layer(x)
         return out
 
-    def forward(self, x, num_samples):
+    def forward(self, x):
         """
         Transforms the input feature matrix with different samples of network structures Z
 
         Parameters
         ----------
         x : data
-        num_samples : Number of samples of network structure Z
 
         Returns
         -------
         act_vec : Tensor by stacking the output from different structures Z
         """
         act_vec = []
-        Z, threshold = self.structure_sampler(num_samples)
+        Z, threshold = self.structure_sampler(self.num_samples)
 
-        for s in range(num_samples):
+        for s in range(self.num_samples):
             out = self._forward(x, Z[s], threshold)
             act_vec.append(out.unsqueeze(0))
 
@@ -113,6 +114,7 @@ class AdaptiveMLP(nn.Module):
         ELBO
         """
         E_loglike = self.get_E_loglike(neg_loglike_fun, act_vec, y)
-        KL = self.structure_sampler.get_kl()
-        ELBO = E_loglike + (kl_weight * KL)/N_train
+        KL1 = self.structure_sampler.get_kl()
+        # KL2 =
+        ELBO = E_loglike + (kl_weight * KL1) / N_train
         return ELBO

@@ -1,11 +1,14 @@
+import numpy as np
 import torch
 from torch import nn
+
 from src.layers.layers import MLPBlock, ConvBlock
 from src.models.NetworkStructureSampler import NetworkStructureSampler
 
 
 class AdaptiveConvNet(nn.Module):
-    def __init__(self, input_channels, num_classes, num_channels=32, kernel_size=3, args=None, device=None):
+    def __init__(self, input_channels, num_classes, num_channels=32, kernel_size=3, args=None, device=None,
+                 pool_count=None):
         super(AdaptiveConvNet, self).__init__()
         self.mode = "NN"
         self.args = args
@@ -22,18 +25,24 @@ class AdaptiveConvNet(nn.Module):
         self.structure_sampler = NetworkStructureSampler(args, self.device)
 
         self.layers = nn.ModuleList([ConvBlock(self.input_channels, self.max_channels,
-                                      kernel_size=5, pool=True).to(self.device)])
+                                               kernel_size=5, pool=True).to(self.device)])
 
         for i in range(1, self.truncation_level):
-            self.layers.append(ConvBlock(self.max_channels,
-                                         self.max_channels,
-                                         kernel_size=3,
-                                         padding=1,
-                                        residual=True).to(self.device))
+            self.layers.append(
+                ConvBlock(self.max_channels,
+                          self.max_channels,
+                          kernel_size=3,
+                          padding=1,
+                          residual=True).to(self.device)
+            )
 
-        self.out_layer = nn.Sequential(MLPBlock(self.max_channels, self.max_channels, residual=True),
-                                       nn.Linear(self.max_channels, self.num_classes))
+        self.out_layer = nn.Sequential(
+            MLPBlock(self.max_channels, self.max_channels, residual=True),
+            nn.Linear(self.max_channels, self.num_classes)
+        )
 
+        self.pool_count = pool_count
+        self.pool = nn.MaxPool2d((2, 2), 2)
 
     def _forward(self, x, mask_matrix, threshold):
         """
@@ -54,9 +63,18 @@ class AdaptiveConvNet(nn.Module):
         if not self.training and threshold > len(self.layers):
             threshold = len(self.layers)
 
+        if self.pool_count:
+            pool_gap = threshold // (self.pool_count)
+            pools = np.arange(1, threshold + 1) % pool_gap
+            pools = (pools == 0)
+
         for layer in range(threshold):
             mask = mask_matrix[:, layer]
             x = self.layers[layer](x, mask)
+
+            if self.pool_count:
+                if pools[layer]:
+                    x = self.pool(x)
 
         x = x.mean(dim=(2, 3))
         out = self.out_layer(x)
@@ -125,5 +143,5 @@ class AdaptiveConvNet(nn.Module):
         """
         E_loglike = self.get_E_loglike(neg_loglike_fun, act_vec, y)
         KL = self.structure_sampler.get_kl()
-        ELBO = E_loglike + (kl_weight * KL)/N_train
+        ELBO = E_loglike + (kl_weight * KL) / N_train
         return ELBO

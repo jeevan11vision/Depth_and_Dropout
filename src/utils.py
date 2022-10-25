@@ -1,7 +1,8 @@
 import numpy as np
-from texttable import Texttable
-import torch
 import pandas as pd
+import torch
+
+from texttable import Texttable
 
 
 def get_device(args):
@@ -34,6 +35,7 @@ def table_printer(args):
                    [[k.replace("_", " ").capitalize(), args[k]] for k in keys])
     print(table.draw())
 
+
 def get_Z(model):
     """
 
@@ -51,6 +53,7 @@ def get_Z(model):
     z = Z.mean(0).cpu().detach().numpy()
     pi = pi.cpu().detach().numpy()
     return pi, z, threshold
+
 
 def plot_network_mask(ax, model, ylabel=False, sz=10):
     """
@@ -76,7 +79,7 @@ def plot_network_mask(ax, model, ylabel=False, sz=10):
     x_data = np.arange(z.shape[1])
     XX, YY = np.meshgrid(x_data, np.arange(z.shape[0]))
     table = np.vstack((XX.ravel(), YY.ravel(), z.ravel())).T
-    
+
     df = pd.DataFrame(table)
     df.columns = ['x', 'y', 'data']
 
@@ -85,13 +88,13 @@ def plot_network_mask(ax, model, ylabel=False, sz=10):
     ax.set_yticks([])
 
     ax.text(-2.8, -(scale / 2), r"$\pi$", fontsize=16)
-    ax.text(k_position-2, -2.3, r"$K^+$", fontsize=16)
+    ax.text(k_position - 2, -2.3, r"$K^+$", fontsize=16)
     ax.text(-2.5, -0.3, r"0", fontsize=14)
     ax.text(-2.5, -1 * scale - 0.5, r"1", fontsize=14)
     ax.hlines(y=-scale - 1, xmin=-0.2, xmax=len(pi), linewidth=1, color="k", linestyle="-")
     ax.bar(np.arange(len(pi)), -1. * pi, bottom=[-1] * len(pi), color="black", width=0.7)
     ax.hlines(y=-1, xmin=-0.2, xmax=len(pi), linewidth=1, color="k")
-    ax.set_xlim(-5, k_position-1)
+    ax.set_xlim(-5, k_position - 1)
     cbar_ax = ax.scatter(x="x", y="y", c="data", s=sz, data=df, cmap='Blues', edgecolors="k", linewidths=0.2)
     ax.set_xlabel(r"Layers", fontsize=12)
     if ylabel:

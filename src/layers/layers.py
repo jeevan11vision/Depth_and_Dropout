@@ -85,7 +85,7 @@ class MLPBlock(nn.Module):
         """
 
         residual = x
-
+        # print(mask)
         out = self.act_layer_fn(self.linear(x))
         out = self.norm_layer(out)
 
@@ -110,6 +110,7 @@ class ConvBlock(nn.Module):
         self.act_layer = nn.LeakyReLU()
         self.norm_layer = nn.BatchNorm2d(out_channels)
         self.pool = pool
+
         if pool:
             self.pool_layer = nn.AvgPool2d(2, 2)
 
